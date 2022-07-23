@@ -13,15 +13,15 @@ SHELL:=/bin/bash
 SRC_DIR    = $(shell pwd)/src
 SIM_DIR    = $(shell pwd)/sim
 SCRIPT_DIR = $(shell pwd)/scripts
-DUMP_DIR   = $(shell pwd)/dump
+DUMP_DIR   = $(shell pwd)/dump_$(DATE)
 
 # Shell variables
-DATE = $$(date +'%d-%m-%Y')
+DATE = $$(date +'%d_%m_%Y')
 
 # Questasim flags
 TOP        = tb_gcd
 VLOG_FLAGS =
-VSIM_FLAGS = -c -voptargs="+acc -O0" -logfile "$(SIM_DIR)/vsim.log" -wlf $(SIM_DIR)/vsim.wlf
+VSIM_FLAGS = -c -voptargs="+acc -O0" -logfile "$(SIM_DIR)/vsim.log"
 
 #--------------------------------------------------------------------------------------------------------------------------------
 # Targets and Recipes
