@@ -1,0 +1,22 @@
+------------------------------------------------
+   Tested scenarios
+------------------------------------------------
+-- Reset state                   -- OK
+-- Write to all RW registers     -- OK
+-- Write to all RO registers     -- OK
+-- Read from all registers       -- OK
+-- Incorrect APB write access    -- OK
+-- Incorrect APB read access     -- OK
+-- Invalid register access       -- OK
+-- Back-to-back writes           -- OK
+-- Back-to-back reads            -- OK
+-- Write then read same register -- OK
+-- Read then write same register -- OK
+-- Wait state (pready) behavior  -- OK
+-- Enable / Reset peripheral     -- OK
+-- Input update in registers     -- OK
+-- Input mapping to DUT          -- OK
+-- Status update in registers    -- OK
+-- Output update in registers    -- OK
+-- Valid-Ready handshake @input  -- OK
+-- Valid-Ready handshake @output -- OK
