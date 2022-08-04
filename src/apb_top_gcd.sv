@@ -142,7 +142,7 @@ always @(posedge clk) begin
                // psel and pwrite expected to be stable for successful read               
                if (i_psel && !i_pwrite) begin 
 
-                  // Address decoding - two LSbs masked because byte-addressable
+                  // Address decoding - two LSbs masked because 32-bit byte-addressing scheme is used
                   case (i_paddr [ADDR_W-1 : 2])
                      0       : prdata_rg <= apb_reg [0] ;
                      1       : prdata_rg <= apb_reg [1] ;
