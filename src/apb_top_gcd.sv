@@ -197,7 +197,7 @@ always @(posedge clk) begin
 
 end
 
-// Synchronous logic to generate data_in_valid_rg, data_out_ready_rg
+// Synchronous logic to generate pulses at data_in_valid, data_out_ready
 always @(posedge clk) begin
    
    // Reset  
