@@ -5,11 +5,12 @@
                   - Default configuration of register space = 32-bit addressing space(DATA_W)
                   - Register space is byte-addressable.
                   - Register space supports 2^(ADDR_W-2) registers.
+                  - Supports run-time configurable interrupt: level/edge-triggered.
                   
    Developer    : Mitu Raj, chip@chipmunklogic.com at Chipmunk Logic ™, https://chipmunklogic.com
    Notes        : -
    License      : Open-source.
-   Date         : July-23-2022
+   Date         : Aug-05-2022
 ===============================================================================================================================*/
 
 /*-------------------------------------------------------------------------------------------------------------------------------
@@ -36,7 +37,10 @@ module apb_top_gcd #(
    input  logic                i_penable ,
    input  logic [DATA_W-1 : 0] i_pwdata  ,        // Write-data
    output logic [DATA_W-1 : 0] o_prdata  ,        // Read-data
-   output logic                o_pready           // Ready
+   output logic                o_pready  ,        // Ready
+
+   // Interrupt Interface
+   output logic                o_intr             // Interrupt
 
 ) ;
 
@@ -46,21 +50,23 @@ typedef enum logic [1 : 0] {IDLE, W_ACCESS, R_ACCESS, FINISH} apb_state ;
 // Internal Registers / Signals
 apb_state            state_rg                            ;
 logic                gcd_rst                             ;
+logic                intr_en, intr_type                  ;
 logic [7 : 0]        a, b, gcd                           ;
 logic                data_in_valid, data_in_ready        ;
 logic                data_out_valid, data_out_ready      ;
 logic                data_in_valid_rg, data_out_ready_rg ;
+logic                data_out_valid_rg                   ;
 logic [DATA_W-1 : 0] prdata_rg                           ;
 logic                pready_rg                           ;
 
-/*----------------------------------------------------------------------------
+/*------------------------------------------------------------------------------------
    Register Space (supports up to 64 registers by default configuration)
-   ---------------------------------------------------------------------------
-   1) 0x00 : apb_reg [0] - control  (RW) = {Enable}
-   2) 0x04 : apb_reg [1] - status   (RO) = {data_in ready, data_out valid}
+   -----------------------------------------------------------------------------------
+   1) 0x00 : apb_reg [0] - control  (RW) = {Interrupt Type, Interrupt Enable, Enable}
+   2) 0x04 : apb_reg [1] - status   (RO) = {data_in_ready, data_out_valid}
    3) 0x08 : apb_reg [2] - data_in  (RW) = {a , b}
    4) 0x0C : apb_reg [3] - data_out (RO) = {gcd(a, b)}
-----------------------------------------------------------------------------*/
+------------------------------------------------------------------------------------*/
 logic [DATA_W-1 : 0] apb_reg [4] ; 
 
 /* Peripheral instance (in bare RTL) to be memory-mapped */
@@ -261,10 +267,26 @@ always @(posedge clk) begin
 
 end
 
+// Synchronous logic to register data_out_valid
+always @(posedge clk) begin
+   
+   // Reset  
+   if (!rstn) begin      
+      data_out_valid_rg <= 1'b0 ;
+   end   
+   // Out of reset
+   else begin      
+      data_out_valid_rg <= data_out_valid ;
+   end
+
+end
+
 // Mapping between register space and Peripheral input ports
-assign gcd_rst  = rstn & apb_reg [0] [0] ;
-assign a        = apb_reg [2] [15 : 8]   ;
-assign b        = apb_reg [2] [7  : 0]   ;
+assign gcd_rst    = rstn & apb_reg [0] [0] ;
+assign intr_en    = apb_reg [0] [1]        ;
+assign intr_type  = apb_reg [0] [2]        ;
+assign a          = apb_reg [2] [15 : 8]   ;
+assign b          = apb_reg [2] [7  : 0]   ;
 
 // Valid and Ready with Peripheral
 assign data_in_valid  = data_in_valid_rg  ;
@@ -273,6 +295,11 @@ assign data_out_ready = data_out_ready_rg ;
 // APB output signals
 assign o_prdata = prdata_rg ;
 assign o_pready = pready_rg ;
+
+// Interrupt
+assign intr_lvl  = data_out_valid ;                                               // Level-triggered interrupt
+assign intr_edge = data_out_valid & ~data_out_valid_rg ;                          // Edge-triggered interrupt
+assign o_intr    = (intr_en)? ((intr_type)? intr_edge : intr_lvl) : 1'b0 ;        // Interrupt driven out
 
 endmodule 
 
