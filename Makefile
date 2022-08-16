@@ -19,7 +19,7 @@ DUMP_DIR   = $(shell pwd)/dump_$(DATE)
 DATE = $$(date +'%d_%m_%Y')
 
 # Questasim flags
-TOP        = tb_gcd
+TOP        = tb_apb_top_gcd
 VLOG_FLAGS =
 VSIM_FLAGS = -c -voptargs="+acc -O0" -logfile "$(SIM_DIR)/vsim.log"
 
