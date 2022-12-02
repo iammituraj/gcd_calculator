@@ -35,7 +35,7 @@ logic [7  : 0] a, b, gcd                     ;
 apb_top_gcd apb_top_gcd_inst (   
    
    .clk       (clk)     ,
-   .rstn 	  (rst)     ,
+   .rstn      (rst)     ,
    .i_paddr   (paddr)   ,
    .i_pwrite  (pwrite)  ,
    .i_psel    (psel)    ,
@@ -60,7 +60,7 @@ initial begin
    main: begin
       
       // Configuring GCD IP       
-      gcdIP_cfg({1'b0, 1'b0, 1'b1});
+      gcdIP_cfg({1'b0, 1'b1, 1'b1});
       $display("Configured GCD IP ...@%0t", $time); 
       
       // Test 10 inputs      
