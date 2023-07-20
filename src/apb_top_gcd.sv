@@ -140,7 +140,7 @@ always @(posedge clk) begin
 
          end
          
-         // Write Access State : waits for penable signal and reads addressed-register
+         // Read Access State : waits for penable signal and reads addressed-register
          R_ACCESS : begin
             
             if (i_penable) begin 
