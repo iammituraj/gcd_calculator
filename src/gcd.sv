@@ -62,25 +62,20 @@ always @(posedge clk) begin
       case (state_rg)
          
          // Idle state         
-         IDLE : begin
-            
+         IDLE : begin            
             ready_rg <= 1'b1 ;        // Ready to accept inputs
             
             // Buffer valid inputs
             if (i_valid && ready_rg) begin
-
                a_rg     <= i_a     ;
                b_rg     <= i_b     ;
                ready_rg <= 1'b0    ;        // Busy from now on
                state_rg <= ITERATE ;
-
             end
-
          end
          
          // Iterate the algorithm
-         ITERATE : begin
-            
+         ITERATE : begin            
             if (b_rg == 0) begin
                gcd_rg   <= a_rg ;        // Iteration ends
                valid_rg <= 1'b1 ;        
@@ -100,19 +95,16 @@ always @(posedge clk) begin
             else begin
                b_rg <= b_rg - a_rg ;
             end
-
          end   
          
          // Read result
-         READ : begin
-            
+         READ : begin            
             // Read acknowledgement            
             if (i_ready) begin
                valid_rg <= 1'b0 ;
                ready_rg <= 1'b1 ;        
                state_rg <= IDLE ;               
             end
-
          end      
 
       endcase 

@@ -18,17 +18,14 @@
 -------------------------------------------------------------------------------------------------------------------------------*/
 
 module apb_top_gcd #(
-
    // Global Parameters
    parameter ADDR_W = 8  ,        // Address width        
    parameter DATA_W = 32          // Data width
-
 )
-
 (   
    // Clock and Reset
    input  logic                clk       ,        // Clock
-   input  logic                rstn      ,        // Active-low synchronous reset	
+   input  logic                rstn      ,        // Active-low synchronous reset   
 
    // APB Slave Interface
    input  logic [ADDR_W-1 : 0] i_paddr   ,        // Address
@@ -42,10 +39,10 @@ module apb_top_gcd #(
    // Interrupt Interface
    output logic                o_intr             // Interrupt
 
-) ;
+);
 
 // Typedefs
-typedef enum logic [1 : 0] {IDLE, W_ACCESS, R_ACCESS, FINISH} apb_state ;
+typedef enum logic [1 : 0] {IDLE, W_ACCESS, R_ACCESS, R_FINISH} apb_state ;
 
 // Internal Registers / Signals
 apb_state            state_rg                            ;
@@ -70,8 +67,7 @@ logic                pready_rg                           ;
 logic [DATA_W-1 : 0] apb_reg [4] ; 
 
 /* Peripheral instance (in bare RTL) to be memory-mapped */
-gcd gcd_inst (
-   
+gcd gcd_inst (   
    .clk     (clk)            ,
    .rstn    (gcd_rst)        ,
    .i_a     (a)              ,
@@ -81,195 +77,140 @@ gcd gcd_inst (
    .o_gcd   (gcd)            ,
    .o_valid (data_out_valid) ,
    .i_ready (data_out_ready)
-
 ) ;
 
 // APB Slave - Synchronous logic to read/write RW and RO registers
-always @(posedge clk) begin
-   
+always @(posedge clk) begin   
    // Reset  
-   if (!rstn) begin
-      
+   if (!rstn) begin      
       state_rg <= IDLE ;
-
       // RW registers      
       apb_reg [0] <= '0 ;
-      apb_reg [2] <= '0 ;
-      
+      apb_reg [2] <= '0 ;      
       // APB registers
       prdata_rg <= '0   ;
       pready_rg <= 1'b0 ;
-
-   end
-   
+   end   
    // Out of reset
-   else begin      
-      
+   else begin       
       // APB control FSM
       case (state_rg)
          
          // Idle State : waits for psel signal and decodes access type         
-         IDLE : begin
-            
-            if      (i_psel && i_pwrite) state_rg <= W_ACCESS ;        // Write access required
-            else if (i_psel)             state_rg <= R_ACCESS ;        // Read access required
-
+         IDLE : begin            
+            if (i_psel && i_pwrite) begin
+               pready_rg <= 1'b1     ;
+               state_rg  <= W_ACCESS ;    // Write access required
+            end       
+            else if (i_psel) begin
+               pready_rg <= 1'b0     ;    // Adding latency for all reads....
+               state_rg  <= R_ACCESS ;    // Read access required  
+            end           
          end
          
          // Write Access State : waits for penable signal and writes addressed-register
-         W_ACCESS : begin
-            
-            if (i_penable) begin 
-               
+         W_ACCESS : begin            
+            if (i_penable) begin               
                // psel and pwrite expected to be stable for successful write               
-               if (i_psel && i_pwrite) begin 
-
+               if (i_psel && i_pwrite) begin
                   // Address decoding - two LSbs masked because 32-bit byte-addressable
                   case (i_paddr [ADDR_W-1 : 2])
                      0       : apb_reg [0] <= i_pwdata ;
                      2       : apb_reg [2] <= i_pwdata ;
                      default : ;                 
-                  endcase                  
-                        
-               end    
-
-               pready_rg <= 1'b1   ;        // Induces one wait state
-               state_rg  <= FINISH ;           
-
+                  endcase
+               end 
+               pready_rg <= 1'b0 ;
+               state_rg  <= IDLE ;
             end
-
          end
          
          // Read Access State : waits for penable signal and reads addressed-register
-         R_ACCESS : begin
-            
-            if (i_penable) begin 
-               
+         R_ACCESS : begin                   
                // psel and pwrite expected to be stable for successful read               
-               if (i_psel && !i_pwrite) begin 
-
+               if (i_psel && !i_pwrite) begin
                   // Address decoding - two LSbs masked because 32-bit byte-addressable
                   case (i_paddr [ADDR_W-1 : 2])
                      0       : prdata_rg <= apb_reg [0] ;
                      1       : prdata_rg <= apb_reg [1] ;
                      2       : prdata_rg <= apb_reg [2] ;
                      3       : prdata_rg <= apb_reg [3] ;
-                     default : ;                 
-                  endcase                           
- 
-               end 
-
-               pready_rg <= 1'b1   ;        // Induces one wait state
-               state_rg  <= FINISH ;              
-
-            end
-
+                     default : prdata_rg <= '0          ;                 
+                  endcase         
+               end
+               else begin
+                  prdata_rg <= '0 ;  // Send 0s on invalid read
+               end
+               pready_rg <= 1'b1     ;        // Induces one wait state
+               state_rg  <= R_FINISH ; 
          end
          
-         // Finish state : All read/write access finishes here          
-         FINISH : begin
-            
-            pready_rg <= 1'b0 ;
-            state_rg  <= IDLE ;
-
+         // Read Finish state : All read accesses finish here          
+         R_FINISH : begin
+            if (i_penable) begin            
+               pready_rg <= 1'b0 ;
+               state_rg  <= IDLE ;
+            end
          end
 
          default : ;         
 
       endcase 
-
    end
-
 end
 
-// APB Slave - Synchronous logic to update all RO registers
-always @(posedge clk) begin
-   
-   // Reset  
-   if (!rstn) begin
-      
-      apb_reg [1] <= '0 ;
-      apb_reg [3] <= '0 ;
+// APB Slave - Combi logic to assign all RO registers
+assign apb_reg [1] = {data_in_ready, data_out_valid} ;
+assign apb_reg [3] = gcd ;
 
-   end
-   
-   // Out of reset
-   else begin
-
-      apb_reg [1] <= {data_in_ready, data_out_valid} ;
-      apb_reg [3] <= gcd ;
-
-   end
-
-end
 
 // Synchronous logic to generate pulses at data_in_valid, data_out_ready
-always @(posedge clk) begin
-   
+always @(posedge clk) begin   
    // Reset  
    if (!rstn) begin      
       data_in_valid_rg  <= 1'b0 ;
       data_out_ready_rg <= 1'b0 ;
-   end
-   
+   end   
    // Out of reset
-   else begin 
-      
+   else begin       
       // Valid logic      
-      if (state_rg == W_ACCESS) begin
-         
-         if (i_penable) begin 
-               
+      if (state_rg == W_ACCESS) begin         
+         if (i_penable) begin                
             // Successful write              
-            if (i_psel && i_pwrite) begin 
-
+            if (i_psel && i_pwrite) begin
                // Writing data_in register should assert valid
                case (i_paddr [ADDR_W-1 : 2])                     
                   2       : data_in_valid_rg <= 1'b1 ;                     
                   default : data_in_valid_rg <= 1'b0 ;                 
-               endcase                           
- 
-            end 
-            
+               endcase                   
+            end             
          end
-
       end
-
       else begin
          data_in_valid_rg <= 1'b0 ;         
       end
       
       // Ready logic
-      if (state_rg == R_ACCESS) begin
-         
-         if (i_penable) begin 
-               
+      if (state_rg == R_ACCESS) begin         
+         if (i_penable) begin               
             // Successful read            
             if (i_psel && !i_pwrite) begin 
-
                // Reading data_out register should assert ready
                case (i_paddr [ADDR_W-1 : 2])                     
                   3       : data_out_ready_rg <= 1'b1 ;                     
                   default : data_out_ready_rg <= 1'b0 ;                
-               endcase                           
- 
-            end 
-            
+               endcase                  
+            end        
          end
-
       end
-
       else begin
          data_out_ready_rg <= 1'b0 ;         
       end
-
    end
-
 end
 
 // Synchronous logic to register data_out_valid
-always @(posedge clk) begin
-   
+always @(posedge clk) begin   
    // Reset  
    if (!rstn) begin      
       data_out_valid_rg <= 1'b0 ;
@@ -278,7 +219,6 @@ always @(posedge clk) begin
    else begin      
       data_out_valid_rg <= data_out_valid ;
    end
-
 end
 
 // Mapping between register space and Peripheral input ports
