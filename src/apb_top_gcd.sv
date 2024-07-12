@@ -125,10 +125,10 @@ always @(posedge clk) begin
             end
          end
          
-         // Read Access State : waits for penable signal and reads addressed-register
+         // Read Access State : reads addressed-register
          R_ACCESS : begin                   
                // psel and pwrite expected to be stable and penable to be asserted for successful read               
-            if (i_psel && !i_pwrite && i_penable) begin
+               if (i_psel && !i_pwrite && i_penable) begin
                   // Address decoding - two LSbs masked because 32-bit byte-addressable
                   case (i_paddr [ADDR_W-1 : 2])
                      0       : prdata_rg <= apb_reg [0] ;
