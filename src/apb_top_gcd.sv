@@ -108,41 +108,39 @@ always @(posedge clk) begin
             end           
          end
          
-         // Write Access State : waits for penable signal and writes addressed-register
-         W_ACCESS : begin            
-            if (i_penable) begin               
-               // psel and pwrite expected to be stable for successful write               
-               if (i_psel && i_pwrite) begin
-                  // Address decoding - two LSbs masked because 32-bit byte-addressable
-                  case (i_paddr [ADDR_W-1 : 2])
-                     0       : apb_reg [0] <= i_pwdata ;
-                     2       : apb_reg [2] <= i_pwdata ;
-                     default : ;                 
-                  endcase
-               end 
-               pready_rg <= 1'b0 ;
-               state_rg  <= IDLE ;
-            end
+         // Write Access State : writes addressed-register
+         W_ACCESS : begin                         
+            // psel and pwrite expected to be stable and penable to be asserted for successful write               
+            if (i_psel && i_pwrite && i_penable) begin
+               // Address decoding - two LSbs masked because 32-bit byte-addressable
+               case (i_paddr [ADDR_W-1 : 2])
+                  0       : apb_reg [0] <= i_pwdata ;
+                  2       : apb_reg [2] <= i_pwdata ;
+                  default : ;                 
+               endcase
+            end 
+            pready_rg <= 1'b0 ;
+            state_rg  <= IDLE ;
          end
          
          // Read Access State : reads addressed-register
          R_ACCESS : begin                   
-               // psel and pwrite expected to be stable and penable to be asserted for successful read               
-               if (i_psel && !i_pwrite && i_penable) begin
-                  // Address decoding - two LSbs masked because 32-bit byte-addressable
-                  case (i_paddr [ADDR_W-1 : 2])
-                     0       : prdata_rg <= apb_reg [0] ;
-                     1       : prdata_rg <= apb_reg [1] ;
-                     2       : prdata_rg <= apb_reg [2] ;
-                     3       : prdata_rg <= apb_reg [3] ;
-                     default : prdata_rg <= '0          ;                 
-                  endcase         
-               end
-               else begin
-                  prdata_rg <= '0 ;  // Send 0s on invalid read
-               end
-               pready_rg <= 1'b1     ;        // Induces one wait state
-               state_rg  <= R_FINISH ; 
+            // psel and pwrite expected to be stable and penable to be asserted for successful read               
+            if (i_psel && !i_pwrite && i_penable) begin
+               // Address decoding - two LSbs masked because 32-bit byte-addressable
+               case (i_paddr [ADDR_W-1 : 2])
+                  0       : prdata_rg <= apb_reg [0] ;
+                  1       : prdata_rg <= apb_reg [1] ;
+                  2       : prdata_rg <= apb_reg [2] ;
+                  3       : prdata_rg <= apb_reg [3] ;
+                  default : prdata_rg <= '0          ;  // All invalid addresses are read as 0                  
+               endcase         
+            end
+            else begin
+               prdata_rg <= '0 ;  // Send 0s on unsuccessful read
+            end
+            pready_rg <= 1'b1     ;        // Induces one wait state
+            state_rg  <= R_FINISH ; 
          end
          
          // Read Finish state : All read accesses finish here          
